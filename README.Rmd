@@ -1,0 +1,10 @@
+---
+title: "README"
+author: "Alisha Gumber"
+date: "9/19/2019"
+output: html_document
+---
+
+**This is my Clustering and Dimension Reduction homework assignment 1.**
+
+Thanks!
