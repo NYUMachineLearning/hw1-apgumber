@@ -1,0 +1,297 @@
+---
+title: "Homework1"
+author: "Alisha Gumber"
+date: "9/17/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = T)
+```
+
+```{r load, include=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(ggfortify)
+library(fastICA)
+library(cluster)
+library(factoextra)
+```
+
+## Homework
+
+```{r}
+data(iris)
+#View(iris)
+```
+
+0. Subset the Iris dataset to only include `Sepal.Length`, `Sepal.Width`, `Petal.Length`, and `Petal.Width`. 
+
+```{r}
+iris_features = iris
+iris_features$Species <- NULL
+head(iris_features)
+```
+
+
+1. Write out the Kmeans algorithm by hand, and run two iterations of it. 
+
+```{r}
+# create PCA plot to use: 
+iris_clust_pca <- data.matrix(iris_features)
+Center_iris <- apply(iris_clust_pca, 2, function(x) x - mean(x))
+Covariance_iris <- cov(Center_iris)
+Eigen_value_iris <- eigen(Covariance_iris)$value
+Eigen_vector_iris <- eigen(Covariance_iris)$vector
+PC <- as.data.frame(data.matrix(Center_iris) %*% Eigen_vector_iris)
+ggplot(PC, aes(PC[,1], PC[,2],)) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# step 1: choose number of clusters (3) and randomly assign each point to a cluster
+set.seed(10)
+clusters <- sample(1:3, 150, replace=TRUE)
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(clusters))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# step 2: calculate centroid of each cluster (mean of each cluster)
+# assign each cluster to specific points from random sample 1, 2, and 3
+clust1 <- iris_features[which(clusters==1),]
+clust2 <- iris_features[which(clusters==2),]
+clust3 <- iris_features[which(clusters==3),]
+
+# calculate centroids of each cluster using colMeans function (takes mean of the columns)
+centroid1 <- colMeans(clust1)
+centroid2 <- colMeans(clust2)
+centroid3 <- colMeans(clust3)
+
+# step 3: calculate the distance from each point to centroid
+# create euclidean distance function to find distance of each point to cluster centroid
+euclidean_distance <- function(x1, x2){
+  sum((x1-x2)^2)
+}
+dist_centroid1 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid1)
+})
+dist_centroid2 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid2)
+})
+dist_centroid3 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid3)
+})
+dist_matrix <- cbind(dist_centroid1, dist_centroid2, dist_centroid3)
+
+clusters2 <- apply(dist_matrix, 1, which.min)
+
+# plot new clusters
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(clusters2))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+```
+
+
+```{r}
+# second iteration: run steps 2 and 3 again
+# assign (new) clusters to points
+clust1.2 <- iris_features[which(clusters2==1),]
+clust2.2 <- iris_features[which(clusters2==2),]
+clust3.2 <- iris_features[which(clusters2==3),]
+# calculate new centroids of clusters
+centroid1.2 <- colMeans(clust1.2)
+centroid2.2 <- colMeans(clust2.2)
+centroid3.2 <- colMeans(clust3.2)
+
+# use euclidean distance function to 
+euclidean_distance <- function(x1, x2){
+  sum((x1-x2)^2)
+}
+dist_centroid1.2 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid1.2)
+})
+dist_centroid2.2 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid2.2)
+})
+dist_centroid3.2 <- apply(iris_features, 1, function(x){
+  euclidean_distance(x, centroid3.2)
+})
+
+dist_matrix2 <- cbind(dist_centroid1.2, dist_centroid2.2, dist_centroid3.2)
+
+clusters3 <- apply(dist_matrix2, 1, which.min)
+
+# plot 2nd iteration of k-means with 3 clusters
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(clusters3))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+```
+
+
+2. Run PCA on the Iris dataset. Plot a scatter plot of PC1 vs PC2 and include the percent variance those PCs describe. 
+
+```{r}
+# center the data by subtracting the mean of the each column from the values in that column
+iris_clust_pca <- data.matrix(iris_features)
+Center_iris <- apply(iris_clust_pca, 2, function(x) x - mean(x))
+
+# calculate covariance matrix
+Covariance_iris <- cov(Center_iris)
+
+# calculate eigen values and vector
+Eigen_value_iris <- eigen(Covariance_iris)$value
+
+#columns are the eigen vectors
+Eigen_vector_iris <- eigen(Covariance_iris)$vector
+
+# multiply eigen vector matrix by original the original data
+PC <- as.data.frame(data.matrix(Center_iris) %*% Eigen_vector_iris)
+
+ggplot(PC, aes(PC[,1], PC[,2])) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# to find the percent variance each PC describe, for each component, take the cumulative sum of eigen values up to that point and and divide by the total sum of eigen values
+round(cumsum(Eigen_value_iris)/sum(Eigen_value_iris) * 100, digits = 2)
+
+```
+
+**Principal component 1 explains 92.46% of the variance, PC 1 and 2 explain 97.77% of the variance. PC 1, 2, and 3 together explain 99.48% of the variance, and PC 1, 2, 3, and 4 together explain 100% of the variance in the data.**
+
+```{r}
+# run PCA just using the prcomp function
+autoplot(prcomp(iris_clust_pca,))
+```
+
+
+3. Run ICA on the Iris dataset. Plot the independent components as a heatmap.
+
+```{r}
+# ICA on iris data
+A <- fastICA(iris_features, 4, alg.typ = "parallel", fun = "logcosh", alpha = 1,
+             method = "R", row.norm = FALSE, maxit = 200,
+             tol = 0.0001, verbose = TRUE)
+heatmap(A$S)
+```
+
+
+4. Use Kmeans to cluster the Iris data. 
+  * Use the silhouette function in the cluster package to find the optimal number of clusters for kmeans for the iris dataset. Then cluster using kmeans clustering. Does the data cluster by species? 
+  * Using this clustering, color the PCA plot according to the clusters.
+
+```{r}
+# use fviz_nbclust function to find optimal number of kmeans clusters using silhouette method
+sil <- fviz_nbclust(iris_features, kmeans, method='silhouette')
+sil
+```
+
+**The data does not cluster by species. There are 3 species listed in the original data set, but silhouette analysis determines the optimal clusters should only be 2.**
+
+```{r}
+# use optimal number of clusters = 2 from silhouette analysis for k-means
+kmeans_result <- kmeans(iris_features, 2)
+str(kmeans_result)
+
+# color PCA plot according to clusters:
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(kmeans_result$cluster))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+```
+  
+5. Use hierarchical clustering to cluster the Iris data.
+
+  * Try two different linkage types, and two different distance metrics. 
+  * For one linkage type and one distance metric, try two different cut points. 
+  * Using this clustering, color the PCA plot according to the clusters. (6  plots in total)
+
+```{r}
+# method 1: distance = euclidean and linkage = average
+hierarchial_iris_dist <- dist(iris_features, method="euclidean")
+iris_tree <- hclust(hierarchial_iris_dist, method="average")
+plot(iris_tree)
+```
+
+```{r}
+# method 2: distance = euclidean and linkage = complete
+hierarchial_iris_dist2 <- dist(iris_features, method="euclidean")
+iris_tree2 <- hclust(hierarchial_iris_dist2, method="complete")
+plot(iris_tree2)
+
+# one cut point for method 2: distance = euclidean and linkage = complete
+plot(iris_tree2)
+tree_k <- cutree(iris_tree2, k=3)
+rect.hclust(iris_tree2, k=3, h=NULL)
+
+# color PCA plot according to 4 clusters:
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# another cut point for method 2
+plot(iris_tree2)
+tree_k2 <- cutree(iris_tree2, k=2)
+rect.hclust(iris_tree2, k=2, h=NULL)
+
+# color PCA plot according to 2 cluster
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k2))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+```
+
+```{r}
+# method 3: distance = manhattan and linkage = complete
+hierarchial_iris_dist3 <- dist(iris_features, method="manhattan")
+iris_tree3 <- hclust(hierarchial_iris_dist3, method="complete")
+plot(iris_tree3)
+
+# one cut point for method 3: distance = manhattan and linkage = complete
+plot(iris_tree3)
+tree_k4 <- cutree(iris_tree3, k=4)
+rect.hclust(iris_tree3, k=4, h=NULL)
+
+# color PCA plot according to 4 clusters:
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k4))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# another cut point for method 2
+plot(iris_tree3)
+tree_k2 <- cutree(iris_tree3, k=2)
+rect.hclust(iris_tree2, k=2, h=NULL)
+
+# color PCA plot according to 2 cluster
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k2))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+```
+
+```{r}
+# method 4: distance = manhattan and linkage = average
+hierarchial_iris_dist4 <- dist(iris_features, method="manhattan")
+iris_tree4 <- hclust(hierarchial_iris_dist4, method="average")
+plot(iris_tree4)
+
+# one cut point for method 4: distance = manhattan and linkage = average
+plot(iris_tree4)
+tree_k3 <- cutree(iris_tree4, k=3)
+rect.hclust(iris_tree4, k=3, h=NULL)
+
+# color PCA plot according to 3 clusters:
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k3))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+
+# another cut point for method 4
+plot(iris_tree4)
+tree_k2 <- cutree(iris_tree4, k=2)
+rect.hclust(iris_tree4, k=2, h=NULL)
+
+# color PCA plot according to 2 cluster
+ggplot(PC, aes(PC[,1], PC[,2], color = factor(tree_k2))) + 
+  geom_point(aes(PC[,1], PC[,2],))
+```
+
+
+# Optional material
+On PCA:
+
+Eigen Vectors and Eigen Values http://www.visiondummy.com/2014/03/eigenvalues-eigenvectors/
+Linear Algebra by Prof. Gilbert Strang https://ocw.mit.edu/courses/mathematics/18-06-linear-algebra-spring-2010/video-lectures/
+http://www.cs.otago.ac.nz/cosc453/student_tutorials/principal_components.pdf
+https://stats.stackexchange.com/questions/2691/making-sense-of-principal-component-analysis-eigenvectors-eigenvalues
+
+On ICA: 
+
+Independent Component Analysis: Algorithms and Applications https://www.cs.helsinki.fi/u/ahyvarin/papers/NN00new.pdf
+Tutorial on ICA taken from http://rstudio-pubs-static.s3.amazonaws.com/93614_be30df613b2a4707b3e5a1a62f631d19.html
